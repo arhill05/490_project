@@ -17,6 +17,7 @@ package com.google.firebase.codelab.friendlychat;
 
 import android.content.Intent;
 import android.content.SharedPreferences;
+import android.database.DataSetObserver;
 import android.os.Bundle;
 import android.preference.PreferenceManager;
 import android.support.annotation.NonNull;
@@ -32,10 +33,16 @@ import android.view.Menu;
 import android.view.MenuInflater;
 import android.view.MenuItem;
 import android.view.View;
+import android.view.ViewGroup;
+import android.widget.AdapterView;
+import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.EditText;
+import android.widget.ListAdapter;
+import android.widget.ListView;
 import android.widget.ProgressBar;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import com.bumptech.glide.Glide;
 import com.firebase.ui.database.FirebaseRecyclerAdapter;
@@ -60,13 +67,18 @@ import com.google.firebase.database.ValueEventListener;
 import com.google.firebase.remoteconfig.FirebaseRemoteConfig;
 import com.google.firebase.remoteconfig.FirebaseRemoteConfigSettings;
 
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 import de.hdodenhof.circleimageview.CircleImageView;
 
 public class MainActivity extends AppCompatActivity implements
         GoogleApiClient.OnConnectionFailedListener {
+
+
+
 
     public static class MessageViewHolder extends RecyclerView.ViewHolder {
         public TextView messageTextView;
@@ -116,7 +128,9 @@ public class MainActivity extends AppCompatActivity implements
         mProgressBar = (ProgressBar) findViewById(R.id.progressBar);
         mMessageRecyclerView = (RecyclerView) findViewById(R.id.messageRecyclerView);
         mLinearLayoutManager = new LinearLayoutManager(this);
-        mLinearLayoutManager.setStackFromEnd(true);
+
+
+
 
         mFirebaseDatabaseReference = FirebaseDatabase.getInstance().getReference();
         mFirebaseAdapter = new FirebaseRecyclerAdapter<FriendlyMessage, MessageViewHolder>(
@@ -144,7 +158,10 @@ public class MainActivity extends AppCompatActivity implements
         // ***************************************************************
         // OUR CODE HERE
         // ***************************************************************
-        
+
+        final ListView listView = (ListView) findViewById(R.id.buzzList);
+        final ArrayList<String> buzzwords = new ArrayList<String>();
+
         // log each entry from the database
         mFirebaseDatabaseReference.addValueEventListener(new ValueEventListener() {
             @Override
@@ -152,7 +169,10 @@ public class MainActivity extends AppCompatActivity implements
                 // access each child
                 for(DataSnapshot postSnapshot: snapshot.getChildren()) {
                     Log.d(TAG, postSnapshot.toString());
+                    buzzwords.add(postSnapshot.toString());
                 }
+                ArrayAdapter arrayAdapter = new ArrayAdapter(MainActivity.this, android.R.layout.simple_list_item_1, buzzwords);
+                listView.setAdapter(arrayAdapter);
 
                 // access as an array, but without the toString
                 Log.d(TAG, snapshot.getValue().toString());
