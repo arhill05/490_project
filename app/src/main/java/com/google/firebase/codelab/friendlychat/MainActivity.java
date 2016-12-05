@@ -96,7 +96,7 @@ public class MainActivity extends AppCompatActivity implements
     private static final String TAG = "MainActivity";
     public static final String MESSAGES_CHILD = "messages";
     private static final int REQUEST_INVITE = 1;
-    public static final int DEFAULT_MSG_LENGTH_LIMIT = 10;
+    public static final int DEFAULT_MSG_LENGTH_LIMIT = 50;
     public static final String ANONYMOUS = "anonymous";
     private static final String MESSAGE_SENT_EVENT = "message_sent";
     private String mUsername;
@@ -169,7 +169,7 @@ public class MainActivity extends AppCompatActivity implements
                 // access each child
                 for(DataSnapshot postSnapshot: snapshot.getChildren()) {
                     Log.d(TAG, postSnapshot.toString());
-                    buzzwords.add(postSnapshot.toString());
+                    buzzwords.add(postSnapshot.getValue().toString());
                 }
                 ArrayAdapter arrayAdapter = new ArrayAdapter(MainActivity.this, android.R.layout.simple_list_item_1, buzzwords);
                 listView.setAdapter(arrayAdapter);
@@ -230,7 +230,7 @@ public class MainActivity extends AppCompatActivity implements
         mFirebaseRemoteConfig.setDefaults(defaultConfigMap);
 
         // Fetch remote config.
-        fetchConfig();
+        //fetchConfig();
 
         mMessageEditText = (EditText) findViewById(R.id.messageEditText);
         mMessageEditText.setFilters(new InputFilter[]{new InputFilter.LengthFilter(mSharedPreferences
@@ -302,7 +302,7 @@ public class MainActivity extends AppCompatActivity implements
     public boolean onOptionsItemSelected(MenuItem item) {
         switch (item.getItemId()) {
             case R.id.fresh_config_menu:
-                fetchConfig();
+                //fetchConfig();
                 return true;
             default:
                 return super.onOptionsItemSelected(item);
@@ -310,7 +310,7 @@ public class MainActivity extends AppCompatActivity implements
     }
 
     // Fetch the config to determine the allowed length of messages.
-    public void fetchConfig() {
+    /*public void fetchConfig() {
         long cacheExpiration = 3600; // 1 hour in seconds
         // If developer mode is enabled reduce cacheExpiration to 0 so that each fetch goes to the
         // server. This should not be used in release builds.
@@ -334,9 +334,9 @@ public class MainActivity extends AppCompatActivity implements
                         applyRetrievedLengthLimit();
                     }
                 });
-    }
+    }*/
 
-    @Override
+    /* @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
         Log.d(TAG, "onActivityResult: requestCode=" + requestCode + ", resultCode=" + resultCode);
@@ -360,17 +360,17 @@ public class MainActivity extends AppCompatActivity implements
                 Log.d(TAG, "Failed to send invitation.");
             }
         }
-    }
+    }*/
 
     /**
      * Apply retrieved length limit to edit text field. This result may be fresh from the server or it may be from
      * cached values.
      */
-    private void applyRetrievedLengthLimit() {
+    /*private void applyRetrievedLengthLimit() {
         Long friendly_msg_length = mFirebaseRemoteConfig.getLong("friendly_msg_length");
         mMessageEditText.setFilters(new InputFilter[]{new InputFilter.LengthFilter(friendly_msg_length.intValue())});
         Log.d(TAG, "FML is: " + friendly_msg_length);
-    }
+    }*/
 
     @Override
     public void onConnectionFailed(ConnectionResult connectionResult) {
