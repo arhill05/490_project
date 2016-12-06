@@ -27,6 +27,7 @@ import android.support.v7.widget.LinearLayoutManager;
 import android.support.v7.widget.RecyclerView;
 import android.text.Editable;
 import android.text.InputFilter;
+import android.text.TextUtils;
 import android.text.TextWatcher;
 import android.util.Log;
 import android.view.Menu;
@@ -99,6 +100,7 @@ public class MainActivity extends AppCompatActivity implements
     public static final int DEFAULT_MSG_LENGTH_LIMIT = 50;
     public static final String ANONYMOUS = "anonymous";
     private static final String MESSAGE_SENT_EVENT = "message_sent";
+    private String authenticatedUser = "";
     private String mUsername;
     private String mPhotoUrl;
     private SharedPreferences mSharedPreferences;
@@ -122,27 +124,31 @@ public class MainActivity extends AppCompatActivity implements
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
+        checkAuth(getIntent());
+
         mSharedPreferences = PreferenceManager.getDefaultSharedPreferences(this);
         mUsername = ANONYMOUS;
 
         mProgressBar = (ProgressBar) findViewById(R.id.progressBar);
         mMessageRecyclerView = (RecyclerView) findViewById(R.id.messageRecyclerView);
         mLinearLayoutManager = new LinearLayoutManager(this);
+        mProgressBar.setVisibility(ProgressBar.INVISIBLE);
 
 
 
 
         mFirebaseDatabaseReference = FirebaseDatabase.getInstance().getReference();
-        mFirebaseAdapter = new FirebaseRecyclerAdapter<FriendlyMessage, MessageViewHolder>(
+
+        /*mFirebaseAdapter = new FirebaseRecyclerAdapter<FriendlyMessage, MessageViewHolder>(
                         FriendlyMessage.class,
                         R.layout.item_message,
                         MessageViewHolder.class,
                         mFirebaseDatabaseReference.child(MESSAGES_CHILD)) {
 
-            @Override
+
             protected void populateViewHolder(MessageViewHolder viewHolder, FriendlyMessage friendlyMessage, int position) {
-                mProgressBar.setVisibility(ProgressBar.INVISIBLE);
-                viewHolder.messageTextView.setText(friendlyMessage.getText());
+
+/*                viewHolder.messageTextView.setText(friendlyMessage.getText());
                 viewHolder.messengerTextView.setText(friendlyMessage.getName());
                 if (friendlyMessage.getPhotoUrl() == null) {
                     viewHolder.messengerImageView.setImageDrawable(ContextCompat.getDrawable(MainActivity.this,
@@ -153,7 +159,7 @@ public class MainActivity extends AppCompatActivity implements
                             .into(viewHolder.messengerImageView);
                 }
             }
-        };
+        };*/
 
         // ***************************************************************
         // OUR CODE HERE
@@ -161,6 +167,7 @@ public class MainActivity extends AppCompatActivity implements
 
         final ListView listView = (ListView) findViewById(R.id.buzzList);
         final ArrayList<String> buzzwords = new ArrayList<String>();
+
 
         // log each entry from the database
         mFirebaseDatabaseReference.addValueEventListener(new ValueEventListener() {
@@ -186,21 +193,6 @@ public class MainActivity extends AppCompatActivity implements
             @Override
             public void onCancelled(DatabaseError error) {
                 Log.d(TAG, error.toString());
-            }
-        });
-
-        mFirebaseAdapter.registerAdapterDataObserver(new RecyclerView.AdapterDataObserver() {
-            @Override
-            public void onItemRangeInserted(int positionStart, int itemCount) {
-                super.onItemRangeInserted(positionStart, itemCount);
-                int friendlyMessageCount = mFirebaseAdapter.getItemCount();
-                int lastVisiblePosition = mLinearLayoutManager.findLastCompletelyVisibleItemPosition();
-                // If the recycler view is initially being loaded or the user is at the bottom of the list, scroll
-                // to the bottom of the list to show the newly added message.
-                if (lastVisiblePosition == -1 ||
-                        (positionStart >= (friendlyMessageCount - 1) && lastVisiblePosition == (positionStart - 1))) {
-                    mMessageRecyclerView.scrollToPosition(positionStart);
-                }
             }
         });
 
@@ -265,6 +257,15 @@ public class MainActivity extends AppCompatActivity implements
                 mFirebaseAnalytics.logEvent(MESSAGE_SENT_EVENT, null);
             }
         });
+    }
+
+    private void checkAuth(Intent reqIntent) {
+
+        authenticatedUser = reqIntent.getStringExtra(Constants.AUTH_VAL);
+        if(TextUtils.isEmpty(authenticatedUser)){
+            Intent intent = new Intent(this, SignInActivity.class);
+            startActivity(intent);
+        }
     }
 
     @Override
