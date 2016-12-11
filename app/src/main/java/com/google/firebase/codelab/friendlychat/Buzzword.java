@@ -15,20 +15,21 @@
  */
 package com.google.firebase.codelab.friendlychat;
 
-public class FriendlyMessage {
+import java.io.Serializable;
+
+public class Buzzword implements Serializable {
 
     private String id;
-    private String text;
-    private String name;
-    private String photoUrl;
+    private String word;
+    private Integer weight;
 
-    public FriendlyMessage() {
+
+    public Buzzword() {
     }
 
-    public FriendlyMessage(String text, String name, String photoUrl) {
-        this.text = text;
-        this.name = name;
-        this.photoUrl = photoUrl;
+    public Buzzword(String word, Integer weight) {
+        this.word = word;
+        this.weight = weight;
     }
 
     public String getId() {
@@ -39,27 +40,20 @@ public class FriendlyMessage {
         this.id = id;
     }
 
-    public String getText() {
-        return text;
+    public String getWord() {
+        return word;
     }
 
-    public void setText(String text) {
-        this.text = text;
+    public void setWord(String text) {
+        this.word = text;
     }
 
-    public String getName() {
-        return name;
+    public Integer getWeight() {
+        return weight;
     }
 
-    public void setName(String name) {
-        this.name = name;
+    public void setWeight(Integer weight) {
+        this.weight = weight;
     }
 
-    public String getPhotoUrl() {
-        return photoUrl;
-    }
-
-    public void setPhotoUrl(String photoUrl) {
-        this.photoUrl = photoUrl;
-    }
 }

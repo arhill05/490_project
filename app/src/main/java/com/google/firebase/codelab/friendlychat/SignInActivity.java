@@ -23,6 +23,7 @@ import android.util.Log;
 import android.view.View;
 import android.widget.Button;
 import android.widget.EditText;
+import android.widget.TextView;
 import android.widget.Toast;
 
 import com.google.android.gms.auth.api.Auth;
@@ -52,15 +53,40 @@ public class SignInActivity extends AppCompatActivity implements GoogleApiClient
     private FirebaseAuth.AuthStateListener mAuthListener;
     private FirebaseAuth mAuth;
 
+    EditText mTextEmail;
+    EditText mTextPassword;
+    Button mSignIn;
+    TextView mAccountTxt;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_sign_in);
 
+        mTextEmail = (EditText)findViewById(R.id.textEmail);
+        mTextPassword = (EditText)findViewById(R.id.textPassword);
+        mSignIn = (Button) findViewById(R.id.simple_sign_in_button);
+        mSignIn.setOnClickListener(this);
+        mAccountTxt = (TextView) findViewById(R.id.txtCreateAccount);
+        mAccountTxt.setOnClickListener(this);
+
+
         mAuth = FirebaseAuth.getInstance();
 
         createAuthListener();
 
+    }
+
+    @Override
+    public void onStart() {
+        super.onStart();
+        mAuth.addAuthStateListener(mAuthListener);
+    }
+
+    @Override
+    public void onStop() {
+        super.onStop();
+        mAuth.removeAuthStateListener(mAuthListener);
     }
 
     private void createAuthListener() {
@@ -80,17 +106,46 @@ public class SignInActivity extends AppCompatActivity implements GoogleApiClient
                 }
             }
         };
-
     }
+
 
     @Override
     public void onClick(View v) {
         switch (v.getId()) {
-
+            case R.id.simple_sign_in_button:
+                signInUidPass();
+                break;
+            case R.id.txtCreateAccount:
+                createAccount();
+                break;
         }
     }
 
-    private void signIn() {
+    private void createAccount() {
+        mAuth.createUserWithEmailAndPassword(mTextEmail.getText().toString(), mTextPassword.getText().toString()).addOnCompleteListener(this, new OnCompleteListener<AuthResult>() {
+            @Override
+            public void onComplete(@NonNull Task<AuthResult> task) {
+                Log.d(TAG, "createUserWithEmail:onComplete:" + task.isSuccessful());
+
+                if(!task.isSuccessful()){
+                    Toast.makeText(SignInActivity.this, "Account creation failed!", Toast.LENGTH_SHORT).show();
+                } else {
+                    Toast.makeText(SignInActivity.this, "Account creation success!", Toast.LENGTH_SHORT).show();
+                }
+            }
+        });
+    }
+
+    private void signInUidPass(){
+        mAuth.signInWithEmailAndPassword(mTextEmail.getText().toString(), mTextPassword.getText().toString()).addOnCompleteListener(this, new OnCompleteListener<AuthResult>() {
+            @Override
+            public void onComplete(@NonNull Task<AuthResult> task) {
+                Log.d(Constants.TAG, "signInwithEmail: onComplete:" + task.isSuccessful());
+                if(!task.isSuccessful()){
+                    Log.w(Constants.TAG, "signInwithEmail: failed", task.getException());
+                }
+            }
+        });
     }
 
     @Override

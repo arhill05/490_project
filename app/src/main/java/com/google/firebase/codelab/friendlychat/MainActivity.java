@@ -15,65 +15,49 @@
  */
 package com.google.firebase.codelab.friendlychat;
 
+import android.app.Activity;
 import android.content.Intent;
 import android.content.SharedPreferences;
-import android.database.DataSetObserver;
+import android.media.MediaPlayer;
 import android.os.Bundle;
 import android.preference.PreferenceManager;
-import android.support.annotation.NonNull;
-import android.support.v4.content.ContextCompat;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.LinearLayoutManager;
 import android.support.v7.widget.RecyclerView;
-import android.text.Editable;
-import android.text.InputFilter;
 import android.text.TextUtils;
-import android.text.TextWatcher;
 import android.util.Log;
 import android.view.Menu;
 import android.view.MenuInflater;
 import android.view.MenuItem;
 import android.view.View;
-import android.view.ViewGroup;
+import android.view.inputmethod.InputMethodManager;
 import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.EditText;
-import android.widget.ListAdapter;
 import android.widget.ListView;
 import android.widget.ProgressBar;
 import android.widget.TextView;
 import android.widget.Toast;
 
-import com.bumptech.glide.Glide;
+import com.firebase.ui.database.FirebaseListAdapter;
 import com.firebase.ui.database.FirebaseRecyclerAdapter;
-import com.google.android.gms.ads.AdRequest;
 import com.google.android.gms.ads.AdView;
-import com.google.android.gms.appinvite.AppInvite;
-import com.google.android.gms.appinvite.AppInviteInvitation;
-import com.google.android.gms.auth.api.Auth;
 import com.google.android.gms.common.ConnectionResult;
 import com.google.android.gms.common.api.GoogleApiClient;
-import com.google.android.gms.tasks.OnFailureListener;
-import com.google.android.gms.tasks.OnSuccessListener;
 import com.google.firebase.analytics.FirebaseAnalytics;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
-import com.google.firebase.crash.FirebaseCrash;
 import com.google.firebase.database.DataSnapshot;
 import com.google.firebase.database.DatabaseError;
 import com.google.firebase.database.DatabaseReference;
 import com.google.firebase.database.FirebaseDatabase;
 import com.google.firebase.database.ValueEventListener;
 import com.google.firebase.remoteconfig.FirebaseRemoteConfig;
-import com.google.firebase.remoteconfig.FirebaseRemoteConfigSettings;
 
+import java.io.Serializable;
+import java.lang.reflect.Array;
 import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-
-import de.hdodenhof.circleimageview.CircleImageView;
 
 public class MainActivity extends AppCompatActivity implements
         GoogleApiClient.OnConnectionFailedListener {
@@ -81,16 +65,14 @@ public class MainActivity extends AppCompatActivity implements
 
 
 
-    public static class MessageViewHolder extends RecyclerView.ViewHolder {
-        public TextView messageTextView;
-        public TextView messengerTextView;
-        public CircleImageView messengerImageView;
+    public static class BuzzwordViewHolder extends RecyclerView.ViewHolder {
+        public TextView wordTextView;
+        public TextView weightTextView;
 
-        public MessageViewHolder(View v) {
+        public BuzzwordViewHolder(View v) {
             super(v);
-            messageTextView = (TextView) itemView.findViewById(R.id.messageTextView);
-            messengerTextView = (TextView) itemView.findViewById(R.id.messengerTextView);
-            messengerImageView = (CircleImageView) itemView.findViewById(R.id.messengerImageView);
+            wordTextView = (TextView) itemView.findViewById(R.id.wordTextView);
+            weightTextView = (TextView) itemView.findViewById(R.id.weightTextView);
         }
     }
 
@@ -108,9 +90,10 @@ public class MainActivity extends AppCompatActivity implements
     private Button mSendButton;
     private RecyclerView mMessageRecyclerView;
     private LinearLayoutManager mLinearLayoutManager;
-    private FirebaseRecyclerAdapter<FriendlyMessage, MessageViewHolder> mFirebaseAdapter;
+    private FirebaseRecyclerAdapter<Buzzword, BuzzwordViewHolder> mFirebaseAdapter;
     private ProgressBar mProgressBar;
     private DatabaseReference mFirebaseDatabaseReference;
+    private DatabaseReference mBuzzwordsRef;
     private FirebaseAuth mFirebaseAuth;
     private FirebaseUser mFirebaseUser;
     private FirebaseAnalytics mFirebaseAnalytics;
@@ -118,6 +101,7 @@ public class MainActivity extends AppCompatActivity implements
     private AdView mAdView;
     private FirebaseRemoteConfig mFirebaseRemoteConfig;
     private GoogleApiClient mGoogleApiClient;
+    private int buttonCounter = 2;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -128,135 +112,159 @@ public class MainActivity extends AppCompatActivity implements
 
         mSharedPreferences = PreferenceManager.getDefaultSharedPreferences(this);
         mUsername = ANONYMOUS;
+        mFirebaseAuth = FirebaseAuth.getInstance();
 
         mProgressBar = (ProgressBar) findViewById(R.id.progressBar);
-        mMessageRecyclerView = (RecyclerView) findViewById(R.id.messageRecyclerView);
         mLinearLayoutManager = new LinearLayoutManager(this);
         mProgressBar.setVisibility(ProgressBar.INVISIBLE);
-
-
-
-
         mFirebaseDatabaseReference = FirebaseDatabase.getInstance().getReference();
-
-        /*mFirebaseAdapter = new FirebaseRecyclerAdapter<FriendlyMessage, MessageViewHolder>(
-                        FriendlyMessage.class,
-                        R.layout.item_message,
-                        MessageViewHolder.class,
-                        mFirebaseDatabaseReference.child(MESSAGES_CHILD)) {
-
-
-            protected void populateViewHolder(MessageViewHolder viewHolder, FriendlyMessage friendlyMessage, int position) {
-
-/*                viewHolder.messageTextView.setText(friendlyMessage.getText());
-                viewHolder.messengerTextView.setText(friendlyMessage.getName());
-                if (friendlyMessage.getPhotoUrl() == null) {
-                    viewHolder.messengerImageView.setImageDrawable(ContextCompat.getDrawable(MainActivity.this,
-                            R.drawable.ic_account_circle_black_36dp));
-                } else {
-                    Glide.with(MainActivity.this)
-                            .load(friendlyMessage.getPhotoUrl())
-                            .into(viewHolder.messengerImageView);
-                }
-            }
-        };*/
-
-        // ***************************************************************
-        // OUR CODE HERE
-        // ***************************************************************
+        mBuzzwordsRef = FirebaseDatabase.getInstance().getReference("buzzWords");
 
         final ListView listView = (ListView) findViewById(R.id.buzzList);
-        final ArrayList<String> buzzwords = new ArrayList<String>();
+        final ArrayList<Buzzword> buzzwords = new ArrayList<Buzzword>();
+        final ArrayList<String> buzzwordValues = new ArrayList<String>();
 
+        final FirebaseListAdapter<Buzzword> myAdapter = new FirebaseListAdapter<Buzzword>(this, Buzzword.class, android.R.layout.simple_list_item_1, mBuzzwordsRef) {
 
-        // log each entry from the database
-        mFirebaseDatabaseReference.addValueEventListener(new ValueEventListener() {
+            @Override
+            protected void populateView(View v, Buzzword model, int position) {
+                ((TextView) v.findViewById(android.R.id.text1)).setText(model.getWord());
+            }
+        };
+
+        listView.setAdapter(myAdapter);
+
+        mBuzzwordsRef.addValueEventListener(new ValueEventListener() {
             @Override
             public void onDataChange(DataSnapshot snapshot) {
                 // access each child
                 for(DataSnapshot postSnapshot: snapshot.getChildren()) {
-                    Log.d(TAG, postSnapshot.toString());
-                    buzzwords.add(postSnapshot.getValue().toString());
+                    Buzzword buzzword = postSnapshot.getValue(Buzzword.class);
+                    buzzwords.add(buzzword);
                 }
-                ArrayAdapter arrayAdapter = new ArrayAdapter(MainActivity.this, android.R.layout.simple_list_item_1, buzzwords);
-                listView.setAdapter(arrayAdapter);
-
-                // access as an array, but without the toString
-                Log.d(TAG, snapshot.getValue().toString());
-
-                // if(entryStr.toLowerCase().contains(postSnapshot.toString().toLowerCase()))
-                // {
-                //      addToBsMeterCounter
-                // }
             }
-
             @Override
             public void onCancelled(DatabaseError error) {
                 Log.d(TAG, error.toString());
             }
         });
 
-        mMessageRecyclerView.setLayoutManager(mLinearLayoutManager);
-        mMessageRecyclerView.setAdapter(mFirebaseAdapter);
-
-
-        // Initialize Firebase Measurement.
-        mFirebaseAnalytics = FirebaseAnalytics.getInstance(this);
-
-        // Initialize Firebase Remote Config.
-        mFirebaseRemoteConfig = FirebaseRemoteConfig.getInstance();
-
-        // Define Firebase Remote Config Settings.
-        FirebaseRemoteConfigSettings firebaseRemoteConfigSettings =
-                new FirebaseRemoteConfigSettings.Builder()
-                .setDeveloperModeEnabled(true)
-                .build();
-
-        // Define default config values. Defaults are used when fetched config values are not
-        // available. Eg: if an error occurred fetching values from the server.
-        Map<String, Object> defaultConfigMap = new HashMap<>();
-        defaultConfigMap.put("friendly_msg_length", 10L);
-
-        // Apply config settings and default values.
-        mFirebaseRemoteConfig.setConfigSettings(firebaseRemoteConfigSettings);
-        mFirebaseRemoteConfig.setDefaults(defaultConfigMap);
-
-        // Fetch remote config.
-        //fetchConfig();
-
-        mMessageEditText = (EditText) findViewById(R.id.messageEditText);
-        mMessageEditText.setFilters(new InputFilter[]{new InputFilter.LengthFilter(mSharedPreferences
-                .getInt(CodelabPreferences.FRIENDLY_MSG_LENGTH, DEFAULT_MSG_LENGTH_LIMIT))});
-        mMessageEditText.addTextChangedListener(new TextWatcher() {
+        listView.setOnItemClickListener(new AdapterView.OnItemClickListener() {
             @Override
-            public void beforeTextChanged(CharSequence charSequence, int i, int i1, int i2) {
-            }
+            public void onItemClick(AdapterView<?> adapterView, View view, int position, long l) {
+                Buzzword buzzwordClicked = (Buzzword)adapterView.getItemAtPosition(position);
+                DatabaseReference ref = myAdapter.getRef(position);
 
-            @Override
-            public void onTextChanged(CharSequence charSequence, int i, int i1, int i2) {
-                if (charSequence.toString().trim().length() > 0) {
-                    mSendButton.setEnabled(true);
-                } else {
-                    mSendButton.setEnabled(false);
-                }
-            }
+                String refKey = ref.getKey();
 
-            @Override
-            public void afterTextChanged(Editable editable) {
+                Intent intent = new Intent(MainActivity.this, AddEditActivity.class);
+                intent.putExtra("ItemRefKey", refKey);
+                intent.putExtra("ClickedBuzzword", buzzwordClicked);
+                startActivity(intent);
+
             }
         });
 
-        mSendButton = (Button) findViewById(R.id.sendButton);
+        mSendButton = (Button) findViewById(R.id.buzzButton);
         mSendButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
-                FriendlyMessage friendlyMessage = new FriendlyMessage(mMessageEditText.getText().toString(), mUsername,
-                        mPhotoUrl);
-                mFirebaseDatabaseReference.child(MESSAGES_CHILD).push().setValue(friendlyMessage);
-                mMessageEditText.setText("");
-                mFirebaseAnalytics.logEvent(MESSAGE_SENT_EVENT, null);
+                TextView messageEdit = (TextView)findViewById(R.id.messageEditText);
+                String text = messageEdit.getText().toString();
+                Integer weightTotal = 0;
+                Integer count = 0;
+
+                for(Buzzword buzzword: buzzwords){
+                    if(text.contains(buzzword.getWord())){
+                        weightTotal = weightTotal + buzzword.getWeight();
+                        count++;
+                    }
+                }
+
+                hideSoftKeyboard(MainActivity.this);
+                if(!messageEdit.getText().toString().isEmpty()) {
+                    int averageWeight = weightTotal / count;
+                    TextView resultsView = (TextView) findViewById(R.id.resultsView);
+                    switch(averageWeight){
+                        case 0:
+                            resultsView.setText("No BS here. Rating: " + averageWeight);
+                            break;
+                        case 1:
+                            resultsView.setText("Beginner BS. Rating: " + averageWeight);
+                            break;
+                        case 2:
+                            resultsView.setText("Beginner BS. Rating: " + averageWeight);
+                            break;
+                        case 3:
+                            resultsView.setText("Still believable. Rating: " + averageWeight);
+                            break;
+                        case 4:
+                            resultsView.setText("Still believable. Rating: " + averageWeight);
+                            break;
+                        case 5:
+                            resultsView.setText("The same level as \"are you with me?\". Rating: " + averageWeight);
+                            break;
+                        case 6:
+                            resultsView.setText("Call the farm. They could use some fertilizer. Rating: " + averageWeight);
+                            break;
+                        case 7:
+                            resultsView.setText("Level: MirZed. Rating: " + averageWeight);
+                            break;
+                        case 8:
+                            resultsView.setText("Level: Pink Hair. Rating: " + averageWeight);
+                            break;
+                        case 9:
+                            resultsView.setText("Level: BSBA in BS. Rating: " + averageWeight);
+                            break;
+                        case 10:
+                            resultsView.setText("Level: Master of zero day vulnerabilities. Rating: " + averageWeight);
+                            break;
+                    }
+
+                    if(averageWeight > 10) {
+                        Toast.makeText(getApplicationContext(), "Your BS levels have exceeded anything known to man. You've broken the application", Toast.LENGTH_SHORT);
+                        try {
+                            Thread.sleep(5000);
+                            throw new RuntimeException("Bullshit limits exceeded");
+                        } catch (InterruptedException e) {
+                            e.printStackTrace();
+                        }
+                    }
+                    incrementButton();
+                }
+                else {
+                    TextView resultsView = (TextView) findViewById(R.id.resultsView);
+                    resultsView.setText("Please enter a phrase");
+                }
+
+
             }
         });
+    }
+
+    private void incrementButton() {
+        final MediaPlayer mp = MediaPlayer.create(this, R.raw.digress);
+        switch(buttonCounter){
+            case 1:
+                mSendButton.setText("BUZZDAT");
+                mp.start();
+                break;
+            case 2:
+                mSendButton.setText("SYNERGIZE");
+                break;
+            case 3:
+                mSendButton.setText("MOVE FORWARD");
+                break;
+            case 4:
+                mSendButton.setText("MINDMAP");
+                break;
+            case 5:
+                mSendButton.setText("SUMMON BARKER");
+                buttonCounter = 0;
+
+                break;
+        }
+        buttonCounter++;
     }
 
     private void checkAuth(Intent reqIntent) {
@@ -302,13 +310,29 @@ public class MainActivity extends AppCompatActivity implements
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
         switch (item.getItemId()) {
-            case R.id.fresh_config_menu:
-                //fetchConfig();
+            case R.id.add_item_menu:
+                Intent jimmyBob = new Intent(MainActivity.this, AddEditActivity.class);
+                startActivity(jimmyBob);
+                return true;
+            case R.id.sign_out_menu:
+                mFirebaseAuth.signOut();
+                Intent jimbob = new Intent(MainActivity.this, SignInActivity.class);
+                startActivity(jimbob);
                 return true;
             default:
                 return super.onOptionsItemSelected(item);
         }
+    };
+
+    public static void hideSoftKeyboard(Activity activity) {
+        InputMethodManager inputMethodManager =
+                (InputMethodManager) activity.getSystemService(
+                        Activity.INPUT_METHOD_SERVICE);
+        inputMethodManager.hideSoftInputFromWindow(
+                activity.getCurrentFocus().getWindowToken(), 0);
     }
+
+
 
     // Fetch the config to determine the allowed length of messages.
     /*public void fetchConfig() {
