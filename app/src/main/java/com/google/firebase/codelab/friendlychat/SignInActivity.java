@@ -73,6 +73,7 @@ public class SignInActivity extends AppCompatActivity implements GoogleApiClient
 
         mAuth = FirebaseAuth.getInstance();
 
+        // create listener to listen for changes in authorization.
         createAuthListener();
 
     }
@@ -95,6 +96,8 @@ public class SignInActivity extends AppCompatActivity implements GoogleApiClient
             @Override
             public void onAuthStateChanged(@NonNull FirebaseAuth firebaseAuth) {
                 FirebaseUser user = firebaseAuth.getCurrentUser();
+
+                // if the change is the user logging in, transition to the MainActivity.
                 if(user != null) {
                     Log.d(Constants.TAG, "onAuthStateChanged:Signed_in:" + user.getUid());
 
@@ -122,6 +125,8 @@ public class SignInActivity extends AppCompatActivity implements GoogleApiClient
     }
 
     private void createAccount() {
+
+        // use the method provided by Firebase to create a new user account
         mAuth.createUserWithEmailAndPassword(mTextEmail.getText().toString(), mTextPassword.getText().toString()).addOnCompleteListener(this, new OnCompleteListener<AuthResult>() {
             @Override
             public void onComplete(@NonNull Task<AuthResult> task) {
@@ -137,6 +142,8 @@ public class SignInActivity extends AppCompatActivity implements GoogleApiClient
     }
 
     private void signInUidPass(){
+
+        // use the method provided by Firebase to sign in with an existing account
         mAuth.signInWithEmailAndPassword(mTextEmail.getText().toString(), mTextPassword.getText().toString()).addOnCompleteListener(this, new OnCompleteListener<AuthResult>() {
             @Override
             public void onComplete(@NonNull Task<AuthResult> task) {

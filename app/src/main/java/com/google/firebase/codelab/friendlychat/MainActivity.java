@@ -58,6 +58,8 @@ import com.google.firebase.remoteconfig.FirebaseRemoteConfig;
 import java.io.Serializable;
 import java.lang.reflect.Array;
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
 
 public class MainActivity extends AppCompatActivity implements
         GoogleApiClient.OnConnectionFailedListener {
@@ -108,6 +110,7 @@ public class MainActivity extends AppCompatActivity implements
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
+        // check if the user is logged in.
         checkAuth(getIntent());
 
         mSharedPreferences = PreferenceManager.getDefaultSharedPreferences(this);
@@ -124,10 +127,12 @@ public class MainActivity extends AppCompatActivity implements
         final ArrayList<Buzzword> buzzwords = new ArrayList<Buzzword>();
         final ArrayList<String> buzzwordValues = new ArrayList<String>();
 
-        final FirebaseListAdapter<Buzzword> myAdapter = new FirebaseListAdapter<Buzzword>(this, Buzzword.class, android.R.layout.simple_list_item_1, mBuzzwordsRef) {
 
+        // use the adapter provided by Firebase to create a new Listview adapter for the Buzzword class
+        final FirebaseListAdapter<Buzzword> myAdapter = new FirebaseListAdapter<Buzzword>(this, Buzzword.class, android.R.layout.simple_list_item_1, mBuzzwordsRef) {
             @Override
             protected void populateView(View v, Buzzword model, int position) {
+                // use the Buzzword's "word" to set what will be seen.
                 ((TextView) v.findViewById(android.R.id.text1)).setText(model.getWord());
             }
         };
@@ -137,7 +142,8 @@ public class MainActivity extends AppCompatActivity implements
         mBuzzwordsRef.addValueEventListener(new ValueEventListener() {
             @Override
             public void onDataChange(DataSnapshot snapshot) {
-                // access each child
+                // access each child, and put it in a local array so we can do comparisons without calling
+                // the database again
                 for(DataSnapshot postSnapshot: snapshot.getChildren()) {
                     Buzzword buzzword = postSnapshot.getValue(Buzzword.class);
                     buzzwords.add(buzzword);
@@ -152,10 +158,17 @@ public class MainActivity extends AppCompatActivity implements
         listView.setOnItemClickListener(new AdapterView.OnItemClickListener() {
             @Override
             public void onItemClick(AdapterView<?> adapterView, View view, int position, long l) {
+
+                // once a buzzword is clicked in the list, set the clicked buzzword and it's
+                // reference to the Firebase entry to a local variable
                 Buzzword buzzwordClicked = (Buzzword)adapterView.getItemAtPosition(position);
                 DatabaseReference ref = myAdapter.getRef(position);
 
                 String refKey = ref.getKey();
+
+                // put both the reference to the buzzword and the buzzword itself as an extra on the intent
+                //
+                // note : Buzzword.class implements Serializable which allows us to serialize it as an extra
 
                 Intent intent = new Intent(MainActivity.this, AddEditActivity.class);
                 intent.putExtra("ItemRefKey", refKey);
@@ -176,11 +189,14 @@ public class MainActivity extends AppCompatActivity implements
 
                 for(Buzzword buzzword: buzzwords){
                     if(text.contains(buzzword.getWord())){
+
+                        // calculate the weight of each buzzword in the phrase
                         weightTotal = weightTotal + buzzword.getWeight();
                         count++;
                     }
                 }
 
+                // hide the keyboard upon clicking the buzz button
                 hideSoftKeyboard(MainActivity.this);
                 if(!messageEdit.getText().toString().isEmpty()) {
                     int averageWeight = weightTotal / count;
@@ -208,7 +224,7 @@ public class MainActivity extends AppCompatActivity implements
                             resultsView.setText("Call the farm. They could use some fertilizer. Rating: " + averageWeight);
                             break;
                         case 7:
-                            resultsView.setText("Level: MirZed. Rating: " + averageWeight);
+                            resultsView.setText("Level: Worse than dad jokes. Rating: " + averageWeight);
                             break;
                         case 8:
                             resultsView.setText("Level: Pink Hair. Rating: " + averageWeight);
@@ -219,16 +235,6 @@ public class MainActivity extends AppCompatActivity implements
                         case 10:
                             resultsView.setText("Level: Master of zero day vulnerabilities. Rating: " + averageWeight);
                             break;
-                    }
-
-                    if(averageWeight > 10) {
-                        Toast.makeText(getApplicationContext(), "Your BS levels have exceeded anything known to man. You've broken the application", Toast.LENGTH_SHORT);
-                        try {
-                            Thread.sleep(5000);
-                            throw new RuntimeException("Bullshit limits exceeded");
-                        } catch (InterruptedException e) {
-                            e.printStackTrace();
-                        }
                     }
                     incrementButton();
                 }
@@ -242,6 +248,8 @@ public class MainActivity extends AppCompatActivity implements
         });
     }
 
+
+    // change the button every time it is clicked
     private void incrementButton() {
         final MediaPlayer mp = MediaPlayer.create(this, R.raw.digress);
         switch(buttonCounter){
@@ -269,6 +277,7 @@ public class MainActivity extends AppCompatActivity implements
 
     private void checkAuth(Intent reqIntent) {
 
+        // if the user is not signed in, direct them to the signIn activity
         authenticatedUser = reqIntent.getStringExtra(Constants.AUTH_VAL);
         if(TextUtils.isEmpty(authenticatedUser)){
             Intent intent = new Intent(this, SignInActivity.class);
@@ -331,71 +340,6 @@ public class MainActivity extends AppCompatActivity implements
         inputMethodManager.hideSoftInputFromWindow(
                 activity.getCurrentFocus().getWindowToken(), 0);
     }
-
-
-
-    // Fetch the config to determine the allowed length of messages.
-    /*public void fetchConfig() {
-        long cacheExpiration = 3600; // 1 hour in seconds
-        // If developer mode is enabled reduce cacheExpiration to 0 so that each fetch goes to the
-        // server. This should not be used in release builds.
-        if (mFirebaseRemoteConfig.getInfo().getConfigSettings().isDeveloperModeEnabled()) {
-            cacheExpiration = 0;
-        }
-        mFirebaseRemoteConfig.fetch(cacheExpiration)
-                .addOnSuccessListener(new OnSuccessListener<Void>() {
-                    @Override
-                    public void onSuccess(Void aVoid) {
-                        // Make the fetched config available via FirebaseRemoteConfig get<type> calls.
-                        mFirebaseRemoteConfig.activateFetched();
-                        applyRetrievedLengthLimit();
-                    }
-                })
-                .addOnFailureListener(new OnFailureListener() {
-                    @Override
-                    public void onFailure(@NonNull Exception e) {
-                        // There has been an error fetching the config
-                        Log.w(TAG, "Error fetching config: " + e.getMessage());
-                        applyRetrievedLengthLimit();
-                    }
-                });
-    }*/
-
-    /* @Override
-    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
-        super.onActivityResult(requestCode, resultCode, data);
-        Log.d(TAG, "onActivityResult: requestCode=" + requestCode + ", resultCode=" + resultCode);
-
-        if (requestCode == REQUEST_INVITE) {
-            if (resultCode == RESULT_OK) {
-                // Use Firebase Measurement to log that invitation was sent.
-                Bundle payload = new Bundle();
-                payload.putString(FirebaseAnalytics.Param.VALUE, "inv_sent");
-
-                // Check how many invitations were sent and log.
-                String[] ids = AppInviteInvitation.getInvitationIds(resultCode, data);
-                Log.d(TAG, "Invitations sent: " + ids.length);
-            } else {
-                // Use Firebase Measurement to log that invitation was not sent
-                Bundle payload = new Bundle();
-                payload.putString(FirebaseAnalytics.Param.VALUE, "inv_not_sent");
-                mFirebaseAnalytics.logEvent(FirebaseAnalytics.Event.SHARE, payload);
-
-                // Sending failed or it was canceled, show failure message to the user
-                Log.d(TAG, "Failed to send invitation.");
-            }
-        }
-    }*/
-
-    /**
-     * Apply retrieved length limit to edit text field. This result may be fresh from the server or it may be from
-     * cached values.
-     */
-    /*private void applyRetrievedLengthLimit() {
-        Long friendly_msg_length = mFirebaseRemoteConfig.getLong("friendly_msg_length");
-        mMessageEditText.setFilters(new InputFilter[]{new InputFilter.LengthFilter(friendly_msg_length.intValue())});
-        Log.d(TAG, "FML is: " + friendly_msg_length);
-    }*/
 
     @Override
     public void onConnectionFailed(ConnectionResult connectionResult) {
